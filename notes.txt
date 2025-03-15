@@ -1,0 +1,8 @@
+Lua ECS archtecture design
+
+
+entities (ids) are stored as table keys 
+
+components are registered to the world, and then are able to be instantiated into entities
+
+systems have a local cache of data, this must be refreshed if the world is dirty

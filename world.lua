@@ -3,6 +3,7 @@
 --world provides a query api that let's us access components from entities
 
 local world = {
+  running = false, --run update loop?
   cur_id = 0,
   dirty = false,   --if world has been modified, then we need to reset queries
   entities = {},   --list of all active entities in the game world
@@ -58,7 +59,7 @@ end
 --data isolation and cache is needed for that in the future
 function world:query(query)
   if type(query) == "number" then
-    return self.entities[query] or false
+    return self.entities[query] or {}
   elseif type(query) == "table" then
     local result = {}
     for id, components in pairs(self.entities) do
@@ -79,7 +80,7 @@ function world:query(query)
     end
     return result
   end
-  return false
+  return {}
 end
 
 --registers a table as a component
@@ -104,9 +105,11 @@ end
 --adds the system to the desired schedule
 function world:register_system(system)
   if string.lower(system.schedule) == "startup" then
-    self.Startup[system.name] = { query = query, func = func }
+    self.Startup[system.name] = { query = system.query, func = system.func }
+    print("register_system REGISTERED: startup, " .. system.name)
   elseif string.lower(system.schedule) == "update" then
     self.Update[system.name] = { query = system.query, func = system.func }
+    print("register_system REGISTERED:  update, ".. system.name)
   end
   return true
 end
@@ -114,8 +117,7 @@ end
 --Runs all startup functions
 function world:start()
   for _, system in pairs(self.Startup) do
-    love.thread.
-    system.func(world:query(f.query))
+    system.func(world:query(system.query))
   end
 end
 
@@ -135,7 +137,12 @@ function world:update(dt)
 end
 
 --drawing occurs on the main thread
+--drawables currently require transform and scale
 function world:draw()
+  local query = {"pos", "scale", "drawable"}
+  for id, entity in pairs(self:query(query)) do
+    love.graphics.draw(entity.drawable.sprite, entity.pos.x, entity.pos.y, 0, entity.scale.x, entity.scale.y)
+  end
 end
 
 return world

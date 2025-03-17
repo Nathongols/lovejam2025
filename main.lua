@@ -13,6 +13,15 @@ function love.update(dt)
 end
 
 function love.draw()
+  love.graphics.clear(1,1,1)
   Scene:draw_scene()
+  love.graphics.setColor(0, 0, 0)
   love.graphics.print("current FPS: "..tostring(love.timer.getFPS()), 10, 10)
+  love.graphics.setColor(1, 1, 1)
+end
+
+function love.mousepressed( x, y, button, istouch, presses)
+  if button == 1 then
+    Scene:mouse1_clicked()
+  end
 end

@@ -9,7 +9,10 @@ local world = {
   entities = {},   --list of all active entities in the game world
   components = {}, --list of possible components that can be added to entities
   Startup = {},    --holds all Startup systems
-  Update = {}      --holds all Update systems
+  Update = {},      --holds all Update systems
+  Draw = {},
+  Mouse1 = {},      --holds all systems that run on mouse1 click
+  Mouse2 = {}      --holds all systems that run on mouse2 click
 }
 
 --generates an id when inserting a new entity
@@ -66,7 +69,7 @@ function world:query(query)
       local match = true
       local filtered = {}
       -- Check for each requested component
-      for _, compName in ipairs(query) do
+      for _, compName in pairs(query) do
         if components[compName] then
           filtered[compName] = components[compName]
         else
@@ -110,6 +113,15 @@ function world:register_system(system)
   elseif string.lower(system.schedule) == "update" then
     self.Update[system.name] = { query = system.query, func = system.func }
     print("register_system REGISTERED:  update, ".. system.name)
+  elseif string.lower(system.schedule) == "draw" then
+    self.Draw[system.name] = { query = system.query, func = system.func }
+    print("register_system REGISTERED:  draw, ".. system.name)
+  elseif string.lower(system.schedule) == "mouse1" then
+    self.Mouse1[system.name] = { query = system.query, func = system.func }
+    print("register_system REGISTERED:  mouse1, ".. system.name)
+  elseif string.lower(system.schedule) == "mouse2" then
+    self.Mouse1[system.name] = { query = system.query, func = system.func }
+    print("register_system REGISTERED:  mouse2, ".. system.name)
   end
   return true
 end
@@ -123,14 +135,15 @@ end
 
 function world:update(dt)
   if self.dirty then
+    -- print("update ENTTIY ADDED: REQUERY")
     for _, f in pairs(self.Update) do
       f.cache = world:query(f.query)
-      f.func(f.cache, dt)
+      f.func(f.cache, self, dt)
     end
     self.dirty = false
   else
     for _, f in pairs(self.Update) do
-      f.func(f.cache, dt)
+      f.func(f.cache, self, dt)
     end
   end
   collectgarbage()
@@ -140,9 +153,48 @@ end
 --drawables currently require transform and scale
 function world:draw()
   local query = {"pos", "scale", "drawable"}
-  for id, entity in pairs(self:query(query)) do
-    love.graphics.draw(entity.drawable.sprite, entity.pos.x, entity.pos.y, 0, entity.scale.x, entity.scale.y)
+  local scale_factor = 0.001 --fiddle later
+  for _, f in pairs(self.Draw) do
+    f.func(f.cache, self, dt)
   end
+  for id, entity in pairs(self:query(query)) do
+    local sprite = entity.drawable.sprite
+    local offsetX = sprite:getWidth() / 2
+    local offsetY = sprite:getHeight() / 2
+    love.graphics.draw(
+      sprite, 
+      entity.pos.x, 
+      entity.pos.y, 
+      0, 
+      entity.scale.x * scale_factor, 
+      entity.scale.y * scale_factor,
+      offsetX, offsetY
+    )
+  end
+end
+
+function world:mouse1_clicked()
+    for _, f in pairs(self.Mouse1) do
+      f.func(f.cache, self, dt)
+    end
+end
+
+function world:mouse2_clicked()
+    for _, f in pairs(self.Mouse2) do
+      f.func(f.cache, self, dt)
+    end
+end
+
+function world:screen_to_world(x, y) 
+    local screenW, screenH = love.graphics.getDimensions()
+    
+    local worldMouseX = x - screenW / 2
+    local worldMouseY = y - screenH / 2
+
+    worldMouseX = worldMouseX * 0.01
+    worldMouseY = worldMouseY * 0.01
+
+    return worldMouseX, worldMouseY
 end
 
 return world

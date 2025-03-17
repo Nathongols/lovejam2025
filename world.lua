@@ -39,11 +39,13 @@ function world:add_entity(components)
 
   for name, attribute in pairs(components) do
     if self.components[name] ~= nil then
-      if Utils.has_same_keys(attribute, self.components[name]) then
-        temp_components[name] = attribute
-      else
-        print("add_entity ERROR: Inserted component does not match world's registered component")
-        return false
+      if type(attribute) == "table" then
+        if Utils.has_same_keys(attribute, self.components[name]) then
+          temp_components[name] = attribute
+        else
+          print("add_entity ERROR: Inserted component does not match world's registered component")
+          return false
+        end
       end
     else
       print("add_entity ERROR: Could not find component " .. name .. ", did you register it?")
@@ -89,20 +91,27 @@ end
 --registers a table as a component
 --returns true if successful, false if not
 function world:register_component(component_name, component_array)
-  for _, attribute in pairs(component_array) do
-    if type(attribute) == "function" then
-      print("ERROR: register_component " .. component_name .. " cannot include a function")
-      return false
+  --For object tags
+  if component_array == nil then 
+    self.components[component_name] = component_name
+    print("register_component REGISTERED: " .. component_name)
+    return true
+  else
+    for _, attribute in pairs(component_array) do
+      if type(attribute) == "function" then
+        print("ERROR: register_component " .. component_name .. " cannot include a function")
+        return false
+      end
+      if type(attribute) == "table" then
+        print("ERROR: in register_component, " .. component_name .. " cannot include a table")
+        return false
+      end
     end
-    if type(attribute) == "table" then
-      print("ERROR: in register_component, " .. component_name .. " cannot include a table")
-      return false
-    end
-  end
 
-  self.components[component_name] = component_array
-  print("register_component REGISTERED: " .. component_name)
-  return true
+    self.components[component_name] = component_array
+    print("register_component REGISTERED: " .. component_name)
+    return true
+  end
 end
 
 --adds the system to the desired schedule

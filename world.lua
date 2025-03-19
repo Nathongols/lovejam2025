@@ -8,10 +8,11 @@ local world = {
   dirty = false,   --if world has been modified, then we need to reset queries
   entities = {},   --list of all active entities in the game world
   components = {}, --list of possible components that can be added to entities
+  resources = {},  --global variables
   Startup = {},    --holds all Startup systems
-  Update = {},      --holds all Update systems
+  Update = {},     --holds all Update systems
   Draw = {},
-  Mouse1 = {},      --holds all systems that run on mouse1 click
+  Mouse1 = {},     --holds all systems that run on mouse1 click
   Mouse2 = {}      --holds all systems that run on mouse2 click
 }
 
@@ -20,6 +21,15 @@ local world = {
 local function generate_id(_world)
   _world.cur_id = _world.cur_id + 1
   return _world.cur_id
+end
+
+function world:add_resource(name, resource)
+  if resource == nil then
+    print("add_resource ERROR: empty arguments")
+    return false
+  end
+  self.resources[name] = resource
+  return true
 end
 
 --args is a list of components to add to the object
@@ -92,7 +102,7 @@ end
 --returns true if successful, false if not
 function world:register_component(component_name, component_array)
   --For object tags
-  if component_array == nil then 
+  if component_array == nil then
     self.components[component_name] = component_name
     print("register_component REGISTERED: " .. component_name)
     return true
@@ -121,16 +131,16 @@ function world:register_system(system)
     print("register_system REGISTERED: startup, " .. system.name)
   elseif string.lower(system.schedule) == "update" then
     self.Update[system.name] = { query = system.query, func = system.func }
-    print("register_system REGISTERED:  update, ".. system.name)
+    print("register_system REGISTERED:  update, " .. system.name)
   elseif string.lower(system.schedule) == "draw" then
     self.Draw[system.name] = { query = system.query, func = system.func }
-    print("register_system REGISTERED:  draw, ".. system.name)
+    print("register_system REGISTERED:  draw, " .. system.name)
   elseif string.lower(system.schedule) == "mouse1" then
     self.Mouse1[system.name] = { query = system.query, func = system.func }
-    print("register_system REGISTERED:  mouse1, ".. system.name)
+    print("register_system REGISTERED:  mouse1, " .. system.name)
   elseif string.lower(system.schedule) == "mouse2" then
     self.Mouse1[system.name] = { query = system.query, func = system.func }
-    print("register_system REGISTERED:  mouse2, ".. system.name)
+    print("register_system REGISTERED:  mouse2, " .. system.name)
   end
   return true
 end
@@ -155,55 +165,67 @@ function world:update(dt)
       f.func(f.cache, self, dt)
     end
   end
-  collectgarbage()
 end
 
 --drawing occurs on the main thread
 --drawables currently require transform and scale
 function world:draw()
-  local query = {"pos", "scale", "drawable"}
+  local query = { "pos", "scale", "drawable" }
   local scale_factor = 0.001 --fiddle later
   for _, f in pairs(self.Draw) do
     f.func(f.cache, self, dt)
   end
-  for id, entity in pairs(self:query(query)) do
-    local sprite = entity.drawable.sprite
-    local offsetX = sprite:getWidth() / 2
-    local offsetY = sprite:getHeight() / 2
-    love.graphics.draw(
-      sprite, 
-      entity.pos.x, 
-      entity.pos.y, 
-      0, 
-      entity.scale.x * scale_factor, 
-      entity.scale.y * scale_factor,
-      offsetX, offsetY
-    )
+  local result = self:query(query) or {}
+  for _, entity in pairs(result) do
+    if entity.drawable.sprite == "rect" then
+      love.graphics.setColor(0, 0, 0)
+      love.graphics.rectangle(
+        'fill',
+        entity.pos.x - entity.scale.x *0.5,
+        entity.pos.y - entity.scale.y * 0.5,
+        entity.scale.x,
+        entity.scale.y 
+      )
+      love.graphics.setColor(1, 1, 1)
+    else
+      local sprite = entity.drawable.sprite
+      local offsetX = sprite:getWidth() / 2
+      local offsetY = sprite:getHeight() / 2
+      love.graphics.draw(
+        sprite,
+        entity.pos.x,
+        entity.pos.y,
+        0,
+        entity.scale.x * scale_factor,
+        entity.scale.y * scale_factor,
+        offsetX, offsetY
+      )
+    end
   end
 end
 
 function world:mouse1_clicked()
-    for _, f in pairs(self.Mouse1) do
-      f.func(f.cache, self, dt)
-    end
+  for _, f in pairs(self.Mouse1) do
+    f.func(f.cache, self, dt)
+  end
 end
 
 function world:mouse2_clicked()
-    for _, f in pairs(self.Mouse2) do
-      f.func(f.cache, self, dt)
-    end
+  for _, f in pairs(self.Mouse2) do
+    f.func(f.cache, self, dt)
+  end
 end
 
-function world:screen_to_world(x, y) 
-    local screenW, screenH = love.graphics.getDimensions()
-    
-    local worldMouseX = x - screenW / 2
-    local worldMouseY = y - screenH / 2
+function world:screen_to_world(x, y)
+  local screenW, screenH = love.graphics.getDimensions()
 
-    worldMouseX = worldMouseX * 0.01
-    worldMouseY = worldMouseY * 0.01
+  local worldMouseX = x - screenW / 2
+  local worldMouseY = y - screenH / 2
 
-    return worldMouseX, worldMouseY
+  worldMouseX = worldMouseX * 0.01
+  worldMouseY = worldMouseY * 0.01
+
+  return worldMouseX, worldMouseY
 end
 
 return world

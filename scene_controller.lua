@@ -23,6 +23,9 @@ end
 
 function scene_controller:draw_scene()
   local width, height = love.graphics.getDimensions()
+  love.graphics.setColor(0, 0, 0)
+  love.graphics.print(self.world.resources["score"], width/2, 20)
+  love.graphics.setColor(1, 1, 1)
   love.graphics.push()
   love.graphics.translate(width / 2, height / 2)
   love.graphics.scale(100, 100)

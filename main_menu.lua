@@ -7,72 +7,12 @@ local physics_test_system = {
   cache = {},
   func = function(query, world, dt)
     if query == nil then return end
-    local gravity = 9.81
+    local gravity = 18.81
     for id, entity in pairs(query) do
       entity.vel.y = entity.vel.y + gravity * dt
 
       entity.pos.x = entity.pos.x + entity.vel.x * dt
       entity.pos.y = entity.pos.y + entity.vel.y * dt
-    end
-  end
-}
-
-local function collision_event(obj1, obj2)
-
-end
-
-local collision_test_system = {
-  name = "collision",
-  schedule = "update",
-  query = { "pos", "scale", "vel", "collider" },
-  cache = {},
-  func = function(query, world, dt)
-    -- Loop through all pairs of entities in the query
-    for i = 1, #query do
-      local entityA = query[i]
-      for j = i + 1, #query do
-        local entityB = query[j]
-        -- Check if one entity is a ball and the other is a bumper.
-        if (entityA.collider.tag == "orb" and entityB.collider.tag == "bumper") or
-            (entityA.collider.tag == "bumper" and entityB.collider.tag == "orb") then
-          -- calc the distance between the centers.
-          local dx = entityA.pos.x - entityB.pos.x
-          local dy = entityA.pos.y - entityB.pos.y
-          local distance = math.sqrt(dx * dx + dy * dy)
-
-          -- calc radius
-          local radiusA = entityA.scale.x * 0.5
-          local radiusB = entityB.scale.x * 0.5
-
-          if distance < (radiusA + radiusB) then
-            local ball = entityA.collider.tag == "ball" and entityA or entityB
-            local bumper = entityB.collider.tag == "bumper" and entityA or entityB
-
-
-            local nx = dx / distance
-            local ny = dy / distance
-
-            local relativeVelocity = ball.vel.x * nx + ball.vel.y * ny
-
-            if relativeVelocity > 0 then
-              -- Reflect the ball's velocity around the normal vector
-              local dotProduct = ball.vel.x * nx + ball.vel.y * ny
-              ball.vel.x = ball.vel.x - 2 * dotProduct * nx
-              ball.vel.y = ball.vel.y - 2 * dotProduct * ny
-
-              -- Optional: Apply a restitution factor to simulate energy loss (bounce effect)
-              local restitution = 0.7 -- Adjust this value between 0 (no bounce) and 1 (perfect bounce)
-              ball.vel.x = ball.vel.x * restitution
-              ball.vel.y = ball.vel.y * restitution
-
-              -- Optional: Adjust ball position to prevent sticking (simple separation)
-              local overlap = (radiusA + radiusB) - distance
-              ball.pos.x = ball.pos.x + nx * overlap
-              ball.pos.y = ball.pos.y + ny * overlap
-            end
-          end
-        end
-      end
     end
   end
 }
@@ -127,7 +67,7 @@ local shoot_ball = {
       vel = { x = velX, y = velY },
       scale = { x = 0.2, y = 0.2 },
       drawable = { sprite = love.graphics.newImage("assets/ball.png") },
-      collider = { tag = "orb" },
+      collider = { tag = "orb", is_colliding = false },
     })
   end
 }
@@ -158,7 +98,7 @@ local draw_trajectory = {
 
 
     -- Calculate predicted trajectory points over a given time period
-    local gravity = 9.81
+    local gravity = 18.81
     local points = {}
     local timeStep = 0.1 -- time interval between points
     local maxTime = 2    -- how far into the future to predict (in seconds)
@@ -194,7 +134,7 @@ local function setup_grid(world)
           scale = { x = 0.2, y = 0.2 },
           vel = { x = 0, y = 0 },
           drawable = { sprite = love.graphics.newImage("assets/bumper.png") },
-          collider = { tag = "bumper" },
+          collider = { tag = "bumper", is_colliding = false },
         })
       else
         world:add_entity({
@@ -203,11 +143,30 @@ local function setup_grid(world)
           scale = { x = 0.4, y = 0.4 },
           vel = { x = 0, y = 0 },
           drawable = { sprite = love.graphics.newImage("assets/bumper.png") },
-          collider = { tag = "bumper" },
+          collider = { tag = "bumper", is_colliding = false },
         })
       end
     end
   end
+end
+
+local function setup_walls(world)
+  world:add_entity({
+    wall = {},
+    pos = { x = -4, y = 0},
+    scale = { x = 0.125, y = 20},
+    vel = { x = 0, y = 0 },
+    drawable = { sprite = "rect"},
+    collider = { tag = "wall", is_colliding = false },
+  })
+  world:add_entity({
+    wall = {},
+    pos = { x = 4, y = 0},
+    scale = { x = 0.125, y = 20},
+    vel = { x = 0, y = 0 },
+    drawable = { sprite = "rect"},
+    collider = { tag = "wall", is_colliding = false },
+  })
 end
 
 --main_menu handles some crucial component initialization since it's loaded first
@@ -216,17 +175,21 @@ function main_menu.load(world)
   world:register_component("vel", { x = 0, y = 0 })
   world:register_component("scale", { x = 0, y = 0 })
   world:register_component("drawable", { sprite = love.graphics.newImage("assets/jinjo.png") })
-  world:register_component("collider", { tag = "value" })
+  world:register_component("collider", { tag = "value", is_colliding = false })
   world:register_component("orb", {})
   world:register_component("bumper", {})
+  world:register_component("wall", {})
 
   -- world:register_system(print_mouse_pos)
   world:register_system(physics_test_system)
-  world:register_system(collision_test_system)
+  world:register_system(require('collision'))
   world:register_system(draw_trajectory)
   world:register_system(shoot_ball)
 
+  world:add_resource("score", 0)
+
   setup_grid(world)
+  setup_walls(world)
 
   local menu_canvas = love.graphics.newCanvas()
 

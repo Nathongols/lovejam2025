@@ -1,5 +1,10 @@
 local function bumper_collision_event(world, ball, bumper)
-  world.resources["score"] = world.resources["score"] + 10
+  local state = world.resources["game_state"]
+  if state == "p1_fire" then
+    world.resources["p1_score"] = world.resources["p1_score"] + 10
+  elseif state == "p2_fire" then
+    world.resources["p2_score"] = world.resources["p2_score"] + 10
+  end
 end
 
 local collision_system = {
@@ -9,10 +14,12 @@ local collision_system = {
   cache = {},
   func = function(query, world, dt)
     -- Loop through all pairs of entities in the query
-    for i = 1, #query do
-      local entityA = query[i]
-      for j = i + 1, #query do
-        local entityB = query[j]
+    if query == nil then return end
+    for id, _ in pairs(query) do
+      local entityA = query[id]
+      for id_2, _ in pairs(query) do
+        local entityB = query[id_2]
+        -- if entityB == nil then return end
         --sphere collision
         if (entityA.collider.tag == "orb" and entityB.collider.tag == "bumper") or
             (entityA.collider.tag == "bumper" and entityB.collider.tag == "orb") then

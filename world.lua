@@ -68,6 +68,12 @@ function world:add_entity(components)
   return true
 end
 
+function world:remove_entity(id)
+  self.entities[id] = nil
+  self.dirty = true
+  return true
+end
+
 --returns an entity/entities based on the inputed components
 --naive implementation
 --TODO: In the future there is numerous benefits to attempting multi-threading
@@ -165,6 +171,7 @@ function world:update(dt)
       f.func(f.cache, self, dt)
     end
   end
+  collectgarbage()
 end
 
 --drawing occurs on the main thread

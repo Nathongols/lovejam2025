@@ -1,74 +1,44 @@
 local main_menu = {}
 
-local physics_test_system = {
-  name = "physics", --dunno if this should be auto-generated
-  schedule = "Update",
-  query = { "orb", "pos", "vel" },
-  cache = {},
-  func = function(query, world, dt)
-    if query == nil then return end
-    local gravity = 18.81
-    for id, entity in pairs(query) do
-      entity.vel.y = entity.vel.y + gravity * dt
-
-      entity.pos.x = entity.pos.x + entity.vel.x * dt
-      entity.pos.y = entity.pos.y + entity.vel.y * dt
-    end
-  end
-}
-
-local hello_world = {
-  name = "hello", --dunno if this should be auto-generated
-  schedule = "Startup",
-  query = {},
-  cache = {},
-  func = function(query, world, dt)
-    print("hello")
-  end
-}
-
-local print_mouse_pos = {
-  name = "print mouse pos", --dunno if this should be auto-generated
-  schedule = "Update",
-  query = {},
-  cache = {},
-  func = function(query, world, dt)
-    -- print(love.graphics.getCanvas())
-    print(love.mouse.getPosition())
-  end
-}
-
 local shoot_ball = {
   name = "spawn ball", --dunno if this should be auto-generated
   schedule = "mouse1",
   query = {},
   cache = {},
   func = function(query, world, dt)
-    local mouseX, mouseY = love.mouse.getPosition()
-    local worldMouseX, worldMouseY = world:screen_to_world(mouseX, mouseY)
+    if world.resources["p1_ammo"] > 0 or world.resources["p2_ammo"] then
+      local mouseX, mouseY = love.mouse.getPosition()
+      local worldMouseX, worldMouseY = world:screen_to_world(mouseX, mouseY)
 
-    local startX, startY = 0, -2
+      local startX, startY = 0, -2
 
-    local dx = worldMouseX - startX
-    local dy = worldMouseY - startY
+      local dx = worldMouseX - startX
+      local dy = worldMouseY - startY
 
-    local distance = math.sqrt(dx * dx + dy * dy)
-    if distance == 0 then distance = 1 end -- Prevent division by zero
-    local unitX = dx / distance
-    local unitY = dy / distance
+      local distance = math.sqrt(dx * dx + dy * dy)
+      if distance == 0 then distance = 1 end -- Prevent division by zero
+      local unitX = dx / distance
+      local unitY = dy / distance
 
-    local speed = 5
-    local velX = unitX * speed
-    local velY = unitY * speed
+      local speed = 5
+      local velX = unitX * speed
+      local velY = unitY * speed
 
-    world:add_entity({
-      orb = {},
-      pos = { x = startX, y = startY },
-      vel = { x = velX, y = velY },
-      scale = { x = 0.2, y = 0.2 },
-      drawable = { sprite = love.graphics.newImage("assets/ball.png") },
-      collider = { tag = "orb", is_colliding = false },
-    })
+      world:add_entity({
+        orb = {},
+        pos = { x = startX, y = startY },
+        vel = { x = velX, y = velY },
+        scale = { x = 0.2, y = 0.2 },
+        drawable = { sprite = love.graphics.newImage("assets/ball.png") },
+        collider = { tag = "orb", is_colliding = false },
+      })
+
+      if world.resources["game_state"] == "p1_fire" then
+        world.resources["p1_ammo"] = world.resources["p1_ammo"] - 1
+      elseif world.resources["game_state"] == "p2_fire" then
+        world.resources["p2_ammo"] = world.resources["p2_ammo"] - 1
+      end
+    end
   end
 }
 
@@ -181,12 +151,15 @@ function main_menu.load(world)
   world:register_component("wall", {})
 
   -- world:register_system(print_mouse_pos)
-  world:register_system(physics_test_system)
-  world:register_system(require('collision'))
+  world:register_system(require('game_manager'))
   world:register_system(draw_trajectory)
   world:register_system(shoot_ball)
 
-  world:add_resource("score", 0)
+  world:add_resource("p1_score", 0)
+  world:add_resource("p2_score", 0)
+  world:add_resource("p1_ammo", 3)
+  world:add_resource("p2_ammo", 3)
+  world:add_resource("game_state", "game_start")
 
   setup_grid(world)
   setup_walls(world)
